@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>🪄 MagicLink Metamask🦊 Auth </title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" type="text/css" href="styles.css" />
+    <script src="https://auth.magic.link/sdk"></script>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.2.11/dist/web3.min.js"></script>
+    <script>
+      /* Configure Ethereum provider */
+      ethereum.enable().then(console.log)
+      const magic = new Magic("Paste your magic link public key");
+      web3=new Web3(web3.currentProvider)
+
+      const render = async () => {
+        const isLoggedIn = await magic.user.isLoggedIn();
+        /* Show login form if user is not logged in */
+        let authHtml = `
+          <div class="container">
+            <h1>🪄 MagicLink Metamask🦊 Auth </h1>
+            <form onsubmit="handleLogin(event)">
+              <input type="email" name="email" required="required" placeholder="Enter your email" />
+              <button type="submit">Send</button>
+            </form>
+          </div>
+        `;
+        let userHtml = "";
+        let txnHtml = "";
+        let signHtml = "";
+        let contractHtml = "";
+        const target = document.querySelector("#app");
+        if (isLoggedIn) {
+          /* Get user metadata including email */
+          const userMetadata = await magic.user.getMetadata();
+          console.log(userMetadata.email);
+          const network = await web3.eth.net.getNetworkType();
+          console.log(network);
+          const userAddress = (await web3.eth.getAccounts())[0];
+          console.log(userAddress);
+          const userBalance = web3.utils.fromWei(
+            await web3.eth.getBalance(userAddress) // Balance is in wei
+          );
+          console.log(userBalance);
+          authHtml = `
+            <div class="container">
+             <p> 🪄 MagicLink Metamask🦊 Auth </p>
+              <h1>User Authenticated </h1>
+              <h1>Current user: ${userMetadata.email}</h1>
+              <button onclick="handleLogout()">Logout</button>
+            </div>
+          `;
+          userHtml = `
+            <div class="container">
+              <h1>Ethereum address</h1>
+              <div class="info">
+                <a href="https://rinkeby.etherscan.io/address/${userAddress}" target="_blank">${userAddress}</a>
+              </div>
+              <h1>Network</h1>
+              <div class="info">${network}</div>
+              <h1>Balance</h1>
+              <div class="info">${userBalance} ETH</div>
+            </div>
+          `;
+          txnHtml = `
+            <div class="container">
+              <h1>Send Transaction</h1>
+              <form onsubmit="handleSendTxn(event)">
+                <input type="text" name="destination" class="full-width" required="required" placeholder="Destination address" />
+                <input type="text" name="amount" class="full-width" required="required" placeholder="Amount in ETH" />
+                <button id="btn-send-txn" type="submit">Send Transaction</button>
+              </form>
+            </div>
+          `;
+          
+          
+        }
+        target.innerHTML =
+          authHtml + userHtml + txnHtml ;
+      };
+
+      const handleLogin = async e => {
+        e.preventDefault();
+        const email = new FormData(e.target).get("email");
+        if (email) {
+          /* One-liner login 🤯 */
+          await magic.auth.loginWithMagicLink({ email });
+          render();
+        }
+      };
+
+      const handleSendTxn = async e => {
+        e.preventDefault();
+        const destination = new FormData(e.target).get("destination");
+        const amount = new FormData(e.target).get("amount");
+        if (destination && amount) {
+          const btnSendTxn = document.getElementById("btn-send-txn");
+          btnSendTxn.disabled = true;
+          btnSendTxn.innerText = "Sending...";
+          const fromAddress = (await web3.eth.getAccounts())[0];
+          // Submit transaction to the blockchain and wait for it to be mined
+          const receipt = await web3.eth.sendTransaction({
+            from: fromAddress,
+            to: destination,
+            value: web3.utils.toWei(amount)
+          });
+          console.log("Completed:", receipt);
+          render();
+        }
+      };
+      const handleLogout = async () => {
+        await magic.user.logout();
+        render();
+      };
+    </script>
+  </head>
+  <body onload="render()">
+    <div id="app">
+      <div class="container">Loading...</div>
+    </div>
+  </body>
+</html>
